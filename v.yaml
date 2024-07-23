@@ -1,0 +1,34 @@
+jenkinsUser: user
+jenkinsPassword: "121416"
+# image:
+#   registry: localhost:5000
+#   repository: custom_jenkins
+#   tag: 0.1
+image:
+  registry: docker.io
+  repository: bitnami/jenkins
+  tag: 2.452.3-debian-12-r0
+service:
+  type: NodePort
+  nodePorts:
+    http: 30095
+    https: ""
+# overridePlugins: true
+# plugins:
+#   - bitbucket:latest
+#   - docker:latest
+#   - groovy:latest
+#   - workflow-aggregator:latest
+#   - pipeline-utility-steps:2.16.0
+#   - jira:latest
+#   - git:latest
+#   - kubernetes:1.16.7
+#   - shared-libraries:1.2.2
+#   - uno-choice:2.1.1
+#   - htmlpublisher:latest
+#   - timestamper:1.8.10
+#   - hidden-parameter:0.0.4
+extraEnvVars:
+  - name: LOG_LEVEL
+    value: DEBUG
+# overridePaths: "/bitnami/jenkins/home/plugins"

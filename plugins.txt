@@ -1,0 +1,13 @@
+bitbucket:latest
+docker:latest
+groovy:latest
+workflow-aggregator:latest
+pipeline-utility-steps:2.16.0
+jira:latest
+git:latest
+kubernetes:1.16.7
+shared-libraries:1.2.2
+uno-choice:2.1.1
+htmlpublisher:latest
+timestamper:1.8.10
+hidden-parameter:0.0.4
