@@ -5,10 +5,14 @@ jenkinsPassword: "121416"
 #   repository: custom_jenkins
 #   tag: 0.1
 image:
-  registry: docker.io
-  repository: bitnami/jenkins
-  # tag: 2.452.3-debian-12-r0
-  tag: 2.452.1-debian-12-r2
+  registry: "172.18.159.22:32082"
+  repository: docker-local/custom_jenkins
+  tag: latest
+# image:
+#   registry: docker.io
+#   repository: bitnami/jenkins
+#   # tag: 2.452.3-debian-12-r0
+#   tag: 2.452.1-debian-12-r2
 service:
   type: NodePort
   nodePorts:

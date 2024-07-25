@@ -2,7 +2,8 @@ artifactory:
   access:
     accessConfig:
       security:
-        tls: false
+        tls: true
+      customCertificatesSecretName: openet-ca-cert-secret
     database:
       maxOpenConnections: 80
     enabled: true
@@ -107,108 +108,16 @@ artifactory:
     persistence:
       accessMode: ReadWriteOnce
       annotations: {}
-      awsS3V3:
-        bucketName: artifactory-aws
-        cloudFrontDomainName: null
-        cloudFrontKeyPairId: null
-        cloudFrontPrivateKey: null
-        credential: null
-        enablePathStyleAccess: false
-        enableSignedUrlRedirect: false
-        endpoint: null
-        identity: null
-        kmsCryptoMode: null
-        kmsKeyRegion: null
-        kmsServerSideEncryptionKeyId: null
-        maxConnections: 50
-        multiPartLimit: null
-        multipartElementSize: null
-        path: artifactory/filestore
-        port: null
-        region: null
-        signatureExpirySeconds: 300
-        signedUrlExpirySeconds: 30
-        testConnection: false
-        useHttp: null
-        useInstanceCredentials: true
-        usePresigning: false
-      azureBlob:
-        accountKey: null
-        accountName: null
-        containerName: null
-        endpoint: null
-        multiPartLimit: 100000000
-        multipartElementSize: 50000000
-        testConnection: false
       cacheProviderDir: cache
       customBinarystoreXmlSecret: null
       enabled: true
       fileSystem:
         cache:
           enabled: false
-      googleStorage:
-        bucketExists: false
-        bucketName: artifactory-gcp
-        enableSignedUrlRedirect: false
-        endpoint: commondatastorage.googleapis.com
-        gcpServiceAccount:
-          enabled: false
-        httpsOnly: false
-        path: artifactory/filestore
-        useInstanceCredentials: false
       lenientLimit: 1
       maxCacheSize: 5000000000
       mountPath: /var/opt/jfrog/artifactory
-      nfs:
-        backupDir: /var/opt/jfrog/artifactory-backup
-        capacity: 200Gi
-        dataDir: /var/opt/jfrog/artifactory
-        haBackupMount: /backup
-        haDataMount: /data
-        ip: null
-      redundancy: 3
-      size: 20Gi
-      type: file-system
-    podAntiAffinity:
-      topologyKey: kubernetes.io/hostname
-      type: soft
-    priorityClass:
-      create: false
-      value: 1000000000
-    readinessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl -s -k --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.artifactory.tomcat.maintenanceConnector.port }}/artifactory/api/v1/system/readiness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}90{{ else }}0{{ end }}
-        periodSeconds: 10
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        failureThreshold: 5
-        successThreshold: 1
-      enabled: true
     replicaCount: 1
-    replicator:
-      enabled: false
-      extraEnvironmentVariables: null
-      ingress:
-        annotations: {}
-        className: ""
-        enabled: true
-        hosts: []
-        name: null
-        tls: []
-      lifecycle: {}
-      name: replicator
-      resources: {}
-      trackerIngress:
-        annotations: {}
-        className: ""
-        enabled: false
-        hosts: []
-        name: null
-        tls: []
     resources: {}
     schedulerName: null
     service:
@@ -216,155 +125,14 @@ artifactory:
       loadBalancerSourceRanges: []
       name: artifactory
       type: NodePort
-      nodePort: 30096
+      nodePort: 30098
     setSecurityContext: true
     ssh:
       enabled: false
       externalPort: 1339
       internalPort: 1339
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl -s -k --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.artifactory.tomcat.maintenanceConnector.port }}/artifactory/api/v1/system/readiness
-        initialDelaySeconds: 10
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
     statefulset:
       annotations: {}
-    systemYaml: |
-      router:
-        serviceRegistry:
-          insecure: {{ .Values.router.serviceRegistry.insecure }}
-      shared:
-      {{- if  .Values.artifactory.coldStorage.enabled }}
-        jfrogColdStorage:
-          coldInstanceEnabled: true
-      {{- end }}
-      {{- if  .Values.artifactory.openMetrics.enabled }}
-        metrics:
-          enabled: true
-        {{- if .Values.artifactory.openMetrics.filebeat.enabled }}
-          filebeat: {{ toYaml .Values.artifactory.openMetrics.filebeat | nindent 6 }}
-        {{- end }}
-      {{- end }}
-        logging:
-          consoleLog:
-            enabled: {{ .Values.artifactory.consoleLog }}
-        extraJavaOpts: >
-          -Dartifactory.graceful.shutdown.max.request.duration.millis={{ mul .Values.artifactory.terminationGracePeriodSeconds 1000 }}
-          -Dartifactory.access.client.max.connections={{ .Values.access.tomcat.connector.maxThreads }}
-        {{- with .Values.artifactory.javaOpts }}
-          {{- if .corePoolSize }}
-          -Dartifactory.async.corePoolSize={{ .corePoolSize }}
-          {{- end }}
-        {{- if .xms }}
-          -Xms{{ .xms }}
-        {{- end }}
-        {{- if .xmx }}
-          -Xmx{{ .xmx }}
-        {{- end }}
-        {{- if .jmx.enabled }}
-          -Dcom.sun.management.jmxremote
-          -Dcom.sun.management.jmxremote.port={{ .jmx.port }}
-          -Dcom.sun.management.jmxremote.rmi.port={{ .jmx.port }}
-          -Dcom.sun.management.jmxremote.ssl={{ .jmx.ssl }}
-        {{- if .jmx.host }}
-          -Djava.rmi.server.hostname={{ tpl .jmx.host $ }}
-        {{- else }}
-          -Djava.rmi.server.hostname={{ template "artifactory.fullname" $ }}
-        {{- end }}
-        {{- if .jmx.authenticate }}
-          -Dcom.sun.management.jmxremote.authenticate=true
-          -Dcom.sun.management.jmxremote.access.file={{ .jmx.accessFile }}
-          -Dcom.sun.management.jmxremote.password.file={{ .jmx.passwordFile }}
-        {{- else }}
-          -Dcom.sun.management.jmxremote.authenticate=false
-        {{- end }}
-        {{- end }}
-        {{- if .other }}
-          {{ .other }}
-        {{- end }}
-        {{- end }}
-        {{- if or .Values.database.type .Values.postgresql.enabled }}
-        database:
-          {{- if .Values.postgresql.enabled }}
-          type: postgresql
-          url: "jdbc:postgresql://{{ .Release.Name }}-postgresql:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.postgresqlDatabase }}"
-          driver: org.postgresql.Driver
-          username: "{{ .Values.postgresql.postgresqlUsername }}"
-          {{- else }}
-          type: "{{ .Values.database.type }}"
-          driver: "{{ .Values.database.driver }}"
-          {{- end }}
-        {{- end }}
-      artifactory:
-      {{- if or .Values.artifactory.haDataDir.enabled .Values.artifactory.haBackupDir.enabled }}
-        node:
-        {{- if .Values.artifactory.haDataDir.path }}
-          haDataDir: {{ .Values.artifactory.haDataDir.path }}
-        {{- end }}
-        {{- if .Values.artifactory.haBackupDir.path }}
-          haBackupDir: {{ .Values.artifactory.haBackupDir.path }}
-        {{- end }}
-      {{- end }}
-        database:
-          maxOpenConnections: {{ .Values.artifactory.database.maxOpenConnections }}
-        tomcat:
-          maintenanceConnector:
-            port: {{ .Values.artifactory.tomcat.maintenanceConnector.port }}
-          connector:
-            maxThreads: {{ .Values.artifactory.tomcat.connector.maxThreads }}
-            sendReasonPhrase: {{ .Values.artifactory.tomcat.connector.sendReasonPhrase }}
-            extraConfig: {{ .Values.artifactory.tomcat.connector.extraConfig }}
-      frontend:
-        session:
-          timeMinutes: {{ .Values.frontend.session.timeoutMinutes | quote }}
-      access:
-        database:
-          maxOpenConnections: {{ .Values.access.database.maxOpenConnections }}
-        tomcat:
-          connector:
-            maxThreads: {{ .Values.access.tomcat.connector.maxThreads }}
-            sendReasonPhrase: {{ .Values.access.tomcat.connector.sendReasonPhrase }}
-            extraConfig: {{ .Values.access.tomcat.connector.extraConfig }}
-      {{- if .Values.mc.enabled }}
-      mc:
-        enabled: true
-        database:
-          maxOpenConnections: {{ .Values.mc.database.maxOpenConnections }}
-        idgenerator:
-          maxOpenConnections: {{ .Values.mc.idgenerator.maxOpenConnections }}
-        tomcat:
-          connector:
-            maxThreads: {{ .Values.mc.tomcat.connector.maxThreads }}
-            sendReasonPhrase: {{ .Values.mc.tomcat.connector.sendReasonPhrase }}
-            extraConfig: {{ .Values.mc.tomcat.connector.extraConfig }}
-      {{- end }}
-      metadata:
-        database:
-          maxOpenConnections: {{ .Values.metadata.database.maxOpenConnections }}
-      {{- if .Values.artifactory.replicator.enabled }}
-      replicator:
-        enabled: true
-      {{- end }}
-      {{- if and .Values.jfconnect.enabled  (not (regexMatch "^.*(oss|cpp-ce|jcr).*$" .Values.artifactory.image.repository)) }}
-      jfconnect:
-        enabled: true
-      {{- else }}
-      jfconnect:
-        enabled: false
-      jfconnect_service:
-        enabled: false
-      {{- end }}
-      {{- if .Values.event.webhooks }}
-      event:
-        webhooks: {{ toYaml .Values.event.webhooks | nindent 6 }}
-      {{- end }}
     terminationGracePeriodSeconds: 30
     tolerations: []
     tomcat:
@@ -382,14 +150,6 @@ artifactory:
     userPluginSecrets: null
   autoscaling:
     enabled: false
-    maxReplicas: 3
-    minReplicas: 1
-    targetCPUUtilizationPercentage: 70
-  aws:
-    license:
-      enabled: false
-    licenseConfigSecretName: null
-    region: us-east-1
   containerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -400,132 +160,18 @@ artifactory:
     seccompProfile:
       type: RuntimeDefault
   customIngress: ""
-  database:
-    driver: null
-    password: null
-    secrets: {}
-    type: null
-    url: null
-    user: null
   databaseUpgradeReady: "yes"
-  event:
-    enabled: true
-    extraEnvironmentVariables: null
-    internalPort: 8061
-    lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.event.internalPort }}/api/v1/system/liveness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        failureThreshold: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        periodSeconds: 10
-        successThreshold: 1
-      enabled: true
-    name: event
-    resources: {}
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.event.internalPort }}/api/v1/system/readiness
-        initialDelaySeconds: 30
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
-    webhooks: {}
   filebeat:
     enabled: false
-    filebeatYml: |
-      logging.level: info
-      path.data: {{ .Values.artifactory.persistence.mountPath }}/log/filebeat
-      name: artifactory-filebeat
-      queue.spool:
-        file:
-          permissions: 0760
-      filebeat.inputs:
-      - type: log
-        enabled: true
-        close_eof: ${CLOSE:false}
-        paths:
-           - {{ .Values.artifactory.persistence.mountPath }}/log/*.log
-        fields:
-          service: "jfrt"
-          log_type: "artifactory"
-      output:
-        logstash:
-           hosts: ["{{ .Values.filebeat.logstashUrl }}"]
-    image:
-      repository: docker.elastic.co/beats/filebeat
-      version: 7.16.2
-    livenessProbe:
-      exec:
-        command:
-        - sh
-        - -c
-        - |
-          #!/usr/bin/env bash -e
-          curl --fail 127.0.0.1:5066
-      failureThreshold: 3
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 5
-    logstashUrl: logstash:5044
-    name: artifactory-filebeat
-    readinessProbe:
-      exec:
-        command:
-        - sh
-        - -c
-        - |
-          #!/usr/bin/env bash -e
-          filebeat test output
-      failureThreshold: 3
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 5
-    resources: {}
   frontend:
     enabled: true
     extraEnvironmentVariables: null
     internalPort: 8070
     lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.frontend.internalPort }}/api/v1/system/liveness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        failureThreshold: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        periodSeconds: 10
-        successThreshold: 1
-      enabled: true
     name: frontend
     resources: {}
     session:
       timeoutMinutes: "30"
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.frontend.internalPort }}/api/v1/system/readiness
-        initialDelaySeconds: 30
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
   global:
     customCertificates:
       enabled: false
@@ -539,7 +185,7 @@ artifactory:
     className: ""
     defaultBackend:
       enabled: true
-    enabled: false
+    enabled: true
     hosts: []
     labels: {}
     routerPath: /
@@ -556,211 +202,10 @@ artifactory:
   installer:
     platform: jcr-helm
     type: null
-  installerInfo: '{"productId": "Helm_artifactory-jcr/{{ .Chart.Version }}", "features":
-    [ { "featureId": "Platform/{{ default "kubernetes" .Values.installer.platform
-    }}"}]}'
-  integration:
-    enabled: true
-    extraEnvironmentVariables: null
-    internalPort: 8071
-    lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.integration.internalPort }}/api/v1/system/liveness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        failureThreshold: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        periodSeconds: 10
-        successThreshold: 1
-      enabled: true
-    name: integration
-    resources: {}
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.integration.internalPort }}/api/v1/system/readiness
-        initialDelaySeconds: 30
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
-  jfconnect:
-    enabled: false
-    extraEnvironmentVariables: null
-    internalPort: 8030
-    lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.jfconnect.internalPort }}/api/v1/system/liveness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        failureThreshold: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        periodSeconds: 10
-        successThreshold: 1
-      enabled: true
-    name: jfconnect
-    resources: {}
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.jfconnect.internalPort }}/api/v1/system/readiness
-        initialDelaySeconds: 30
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
-  logger:
-    image:
-      registry: releases-docker.jfrog.io
-      repository: ubi9/ubi-minimal
-      tag: 9.2.691
-  mc:
-    database:
-      maxOpenConnections: 10
-    enabled: false
-    idgenerator:
-      maxOpenConnections: 2
-    tomcat:
-      connector:
-        extraConfig: acceptCount="100"
-        maxThreads: 50
-        sendReasonPhrase: false
-  metadata:
-    database:
-      maxOpenConnections: 80
-    enabled: true
-    extraEnvironmentVariables: null
-    internalPort: 8086
-    lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.metadata.internalPort }}/api/v1/system/liveness
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        failureThreshold: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        periodSeconds: 10
-        successThreshold: 1
-      enabled: true
-    name: metadata
-    resources: {}
-    startupProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl --fail --max-time {{ .Values.probes.timeoutSeconds }} http://localhost:{{ .Values.metadata.internalPort }}/api/v1/system/readiness
-        initialDelaySeconds: 30
-        failureThreshold: 90
-        periodSeconds: 5
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-      enabled: true
   networkpolicy: []
   nginx:
     affinity: {}
     annotations: {}
-    artifactoryConf: |
-      {{- if .Values.nginx.https.enabled }}
-      ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
-      ssl_certificate  {{ .Values.nginx.persistence.mountPath }}/ssl/tls.crt;
-      ssl_certificate_key  {{ .Values.nginx.persistence.mountPath }}/ssl/tls.key;
-      ssl_session_cache shared:SSL:1m;
-      ssl_prefer_server_ciphers   on;
-      {{- end }}
-      ## server configuration
-      server {
-      {{- if .Values.nginx.internalPortHttps }}
-        listen {{ .Values.nginx.internalPortHttps }} ssl;
-      {{- else -}}
-        {{- if .Values.nginx.https.enabled }}
-        listen {{ .Values.nginx.https.internalPort }} ssl;
-        {{- end }}
-      {{- end }}
-      {{- if .Values.nginx.internalPortHttp }}
-        listen {{ .Values.nginx.internalPortHttp }};
-      {{- else -}}
-        {{- if .Values.nginx.http.enabled }}
-        listen {{ .Values.nginx.http.internalPort }};
-        {{- end }}
-      {{- end }}
-        server_name ~(?<repo>.+)\.{{ include "artifactory.fullname" . }} {{ include "artifactory.fullname" . }}
-        {{- range .Values.ingress.hosts -}}
-          {{- if contains "." . -}}
-            {{ "" | indent 0 }} ~(?<repo>.+)\.{{ . }}
-          {{- end -}}
-        {{- end -}};
-
-        if ($http_x_forwarded_proto = '') {
-          set $http_x_forwarded_proto  $scheme;
-        }
-        ## Application specific logs
-        ## access_log /var/log/nginx/artifactory-access.log timing;
-        ## error_log /var/log/nginx/artifactory-error.log;
-        rewrite ^/artifactory/?$ / redirect;
-        if ( $repo != "" ) {
-          rewrite ^/(v1|v2)/(.*) /artifactory/api/docker/$repo/$1/$2 break;
-        }
-        chunked_transfer_encoding on;
-        client_max_body_size 0;
-
-        location / {
-          proxy_read_timeout  900;
-          proxy_pass_header   Server;
-          proxy_cookie_path   ~*^/.* /;
-          proxy_pass          {{ include "artifactory.scheme" . }}://{{ include "artifactory.fullname" . }}:{{ .Values.artifactory.externalPort }}/;
-          {{- if .Values.nginx.service.ssloffload}}
-          proxy_set_header    X-JFrog-Override-Base-Url $http_x_forwarded_proto://$host;
-          {{- else }}
-          proxy_set_header    X-JFrog-Override-Base-Url $http_x_forwarded_proto://$host:$server_port;
-          proxy_set_header    X-Forwarded-Port  $server_port;
-          {{- end }}
-          proxy_set_header    X-Forwarded-Proto $http_x_forwarded_proto;
-          proxy_set_header    Host              $http_host;
-          proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
-          {{- if .Values.nginx.disableProxyBuffering}}
-          proxy_http_version 1.1;
-          proxy_request_buffering off;
-          proxy_buffering off;
-          {{- end }}
-          add_header Strict-Transport-Security always;
-
-          location /artifactory/ {
-            if ( $request_uri ~ ^/artifactory/(.*)$ ) {
-              proxy_pass       http://{{ include "artifactory.fullname" . }}:{{ .Values.artifactory.externalArtifactoryPort }}/artifactory/$1;
-            }
-            proxy_pass         http://{{ include "artifactory.fullname" . }}:{{ .Values.artifactory.externalArtifactoryPort }}/artifactory/;
-          }
-          location /pipelines/ {
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header Host $http_host;
-            {{- if .Values.router.tlsEnabled }}
-            proxy_pass  https://{{ include "artifactory.fullname" . }}:{{ .Values.router.internalPort }};
-            {{- else }}
-            proxy_pass  http://{{ include "artifactory.fullname" . }}:{{ .Values.router.internalPort }};
-            {{- end }}
-          }
-        }
-      }
     customArtifactoryConfigMap: null
     customCommand: null
     customConfigMap: null
@@ -789,101 +234,11 @@ artifactory:
     kind: Deployment
     labels: {}
     lifecycle: {}
-    livenessProbe:
-      config: |
-        exec:
-          command:
-            - sh
-            - -c
-            - curl -s -k --fail --max-time {{ .Values.probes.timeoutSeconds }} {{ include "nginx.scheme" . }}://localhost:{{ include "nginx.port" . }}/
-        initialDelaySeconds: {{ if semverCompare "<v1.20.0-0" .Capabilities.KubeVersion.Version }}180{{ else }}0{{ end }}
-        periodSeconds: 10
-        timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
-        failureThreshold: 5
-        successThreshold: 1
-      enabled: true
     loggers: []
     loggersResources: {}
     logs:
       level: warn
       stderr: false
-    mainConf: |
-      # Main Nginx configuration file
-      worker_processes  4;
-
-      {{ if .Values.nginx.logs.stderr }}
-      error_log  stderr {{ .Values.nginx.logs.level }};
-      {{- else -}}
-      error_log  {{ .Values.nginx.persistence.mountPath }}/logs/error.log {{ .Values.nginx.logs.level }};
-      {{- end }}
-      pid        /tmp/nginx.pid;
-
-      {{- if .Values.artifactory.ssh.enabled }}
-      ## SSH Server Configuration
-      stream {
-        server {
-          listen {{ .Values.nginx.ssh.internalPort }};
-          proxy_pass {{ include "artifactory.fullname" . }}:{{ .Values.artifactory.ssh.externalPort }};
-        }
-      }
-      {{- end }}
-
-      events {
-        worker_connections  1024;
-      }
-
-
-      http {
-        include       /etc/nginx/mime.types;
-        default_type  application/octet-stream;
-
-        variables_hash_max_size 1024;
-        variables_hash_bucket_size 64;
-        server_names_hash_max_size 4096;
-        server_names_hash_bucket_size 128;
-        types_hash_max_size 2048;
-        types_hash_bucket_size 64;
-        proxy_read_timeout 2400s;
-        client_header_timeout 2400s;
-        client_body_timeout 2400s;
-        proxy_connect_timeout 75s;
-        proxy_send_timeout 2400s;
-        proxy_buffer_size 128k;
-        proxy_buffers 40 128k;
-        proxy_busy_buffers_size 128k;
-        proxy_temp_file_write_size 250m;
-        proxy_http_version 1.1;
-        client_body_buffer_size 128k;
-
-        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-        '$status $body_bytes_sent "$http_referer" '
-        '"$http_user_agent" "$http_x_forwarded_for"';
-
-        log_format timing 'ip = $remote_addr '
-        'user = \"$remote_user\" '
-        'local_time = \"$time_local\" '
-        'host = $host '
-        'request = \"$request\" '
-        'status = $status '
-        'bytes = $body_bytes_sent '
-        'upstream = \"$upstream_addr\" '
-        'upstream_time = $upstream_response_time '
-        'request_time = $request_time '
-        'referer = \"$http_referer\" '
-        'UA = \"$http_user_agent\"';
-
-        access_log  {{ .Values.nginx.persistence.mountPath }}/logs/access.log  timing;
-
-        sendfile        on;
-        #tcp_nopush     on;
-
-        keepalive_timeout  65;
-
-        #gzip  on;
-
-        include /etc/nginx/conf.d/*.conf;
-
-      }
     minAvailable: 0
     name: nginx
     nodeSelector: {}
