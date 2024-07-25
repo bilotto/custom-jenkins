@@ -1,0 +1,49 @@
+Instalei um single node cluster kubernetes na minha WSL usando k3s
+O meu objetivo final eh subir um jenkins usando uma custom-image que fica num jfrog no proprio cluster.
+
+Instalei o jfrog usando o comando:
+
+
+helm upgrade -i jfrog jfrog/artifactory-jcr --version 107.63.12 \
+--set artifactory.artifactory.service.type=NodePort \
+--set artifactory.artifactory.nodePort=30000 \
+--set artifactory.nginx.service.type=NodePort \
+--set artifactory.nginx.service.nodePort=32082
+
+No primeiro acesso eu redefini a senha do user admin.
+Setei o endereço para 172.18.159.22:30000
+Ele veio com o repo docker-local criado.
+
+e eu pude entao
+
+docker tag ae21fc602b1a 172.18.159.22:30000/docker-local/custom_jenkins:latest
+docker push 172.18.159.22:30000/docker-local/custom_jenkins:latest
+
+antes precisei add 172.18.159.22:30000 no meu /etc/docker/daemon.json como insecure registry.
+
+Blz, consegui fazer o push da imagem pro docker-local
+
+Estou deploy o jenkins agora com o comando
+helm upgrade -i jenkins oci://registry-1.docker.io/bitnamicharts/jenkins -f v.yaml
+
+e usando isso no v.yaml
+image:
+  registry: 172.18.159.22:30000
+  repository: docker-local/custom_jenkins
+  tag: latest
+
+
+porem o pod nao sobe
+
+│
+│ Events:                                                                                                                                                                         │
+│   Type     Reason     Age                From               Message                                                                                                             │
+│   ----     ------     ----               ----               -------                                                                                                             │
+│   Normal   Scheduled  38s                default-scheduler  Successfully assigned default/jenkins-6dccc79cc9-4s8wn to desktop-gkll1cv                                           │
+│   Normal   Pulling    24s (x2 over 38s)  kubelet            Pulling image "172.18.159.22:30000/docker-local/custom_jenkins:latest"                                              │
+│   Warning  Failed     24s (x2 over 38s)  kubelet            Failed to pull image "172.18.159.22:30000/docker-local/custom_jenkins:latest": failed to pull and unpack image "172 │
+│ .18.159.22:30000/docker-local/custom_jenkins:latest": failed to resolve reference "172.18.159.22:30000/docker-local/custom_jenkins:latest": failed to do request: Head "https:/ │
+│ /172.18.159.22:30000/v2/docker-local/custom_jenkins/manifests/latest": remote error: tls: unrecognized name                                                                     │
+│   Warning  Failed     24s (x2 over 38s)  kubelet            Error: ErrImagePull                                                                                                 │
+│   Normal   BackOff    9s (x2 over 38s)   kubelet            Back-off pulling image "172.18.159.22:30000/docker-local/custom_jenkins:latest"                                     │
+│   Warning  Failed     9s (x2 over 38s)   kubelet            Error: ImagePullBackOff    
